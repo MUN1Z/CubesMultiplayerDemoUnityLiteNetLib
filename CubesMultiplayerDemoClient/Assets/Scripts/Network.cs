@@ -9,8 +9,9 @@ public class Network : MonoBehaviour, INetEventListener {
 
     public Player player;
     private Vector3 lastNetworkedPosition = Vector3.zero;
+
     private float lastDistance = 0.0f;
-    const float MIN_DISTANCE_TO_SEND_POSITION = 0.001f;
+    const float MIN_DISTANCE_TO_SEND_POSITION = 0.01f;
 
     private NetDataWriter dataWriter;
     private NetManager clientNetManager;
@@ -59,29 +60,18 @@ public class Network : MonoBehaviour, INetEventListener {
                 }
             }
 
-        foreach (var p in netPlayersDictionary)
+        foreach (var player in netPlayersDictionary)
         {
-            if (!p.Value.gameObjectAdded)
+            if (!player.Value.GameObjectAdded)
             {
-                p.Value.gameObjectAdded = true;
-                p.Value.gameObject = GameObject.Instantiate(netPlayerPrefab, new Vector3(p.Value.x, p.Value.y, p.Value.z), Quaternion.identity);
+                player.Value.GameObjectAdded = true;
+                player.Value.GameObject = Instantiate(netPlayerPrefab, player.Value.Position, Quaternion.identity);
             }
             else
-            {
-                p.Value.gameObject.transform.position = new Vector3(p.Value.x, p.Value.y, p.Value.z);
-
-                //Debug.Log($"X: {p.Value.x} Y: {p.Value.y} Z: { p.Value.z}");
-            }
-
+                player.Value.GameObject.transform.position = player.Value.Position;
         }
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-       
-    }
-
+    
     private void OnApplicationQuit()
     {
         if (clientNetManager != null)
@@ -89,10 +79,7 @@ public class Network : MonoBehaviour, INetEventListener {
                 clientNetManager.Stop();
     }
 
-    public void OnNetworkLatencyUpdate(NetPeer peer, int latency)
-    {
-        
-    }
+    public void OnNetworkLatencyUpdate(NetPeer peer, int latency) { }
 
     public void OnNetworkReceive(NetPeer peer, NetDataReader reader)
     {
@@ -113,19 +100,13 @@ public class Network : MonoBehaviour, INetEventListener {
                 for (int i = 0; i < lengthArr; i++)
                 {
                     long playerid = reader.GetLong();
-
-                    float x = reader.GetFloat();
-                    float y = reader.GetFloat();
-                    float z = reader.GetFloat();
-
+                    
                     if (!netPlayersDictionary.ContainsKey(playerid))
-                    {
                         netPlayersDictionary.Add(playerid, new NetPlayer());
-                    }
 
-                    netPlayersDictionary[playerid].x = x;
-                    netPlayersDictionary[playerid].y = y;
-                    netPlayersDictionary[playerid].z = z;
+                    netPlayersDictionary[playerid].X = reader.GetFloat();
+                    netPlayersDictionary[playerid].Y = reader.GetFloat();
+                    netPlayersDictionary[playerid].Z = reader.GetFloat();
                 }
             }
         }

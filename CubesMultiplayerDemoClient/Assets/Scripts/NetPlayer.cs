@@ -4,11 +4,18 @@ namespace Assets.Scripts
 {
     public class NetPlayer
     {
-        public float x;
-        public float y;
-        public float z;
+        public float X { get; set; }
+        public float Y { get; set; }
+        public float Z { get; set; }
 
-        public GameObject gameObject;
-        public bool gameObjectAdded = false;
+        public GameObject GameObject { get; set; }
+        public bool GameObjectAdded { get; set; }
+
+        public NetPlayer()
+        {
+            GameObjectAdded = false;
+        }
+
+        public Vector3 Position => new Vector3(X, Y, Z);
     }
 }
