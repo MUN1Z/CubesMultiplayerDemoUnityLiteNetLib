@@ -1,6 +1,5 @@
 ﻿using LiteNetLib;
-using System.Net;
-using System.Net.Sockets;
+using LiteNetLib.Utils;
 using UnityEngine;
 
 public class Network : MonoBehaviour, INetEventListener {
@@ -10,58 +9,57 @@ public class Network : MonoBehaviour, INetEventListener {
     // Use this for initialization
     void Start()
     {
-        EventBasedNetListener listener = new EventBasedNetListener();
-        clientNetManager = new NetManager(listener);
+        clientNetManager = new NetManager(this, "game");
 
         if (clientNetManager.Start())
         {
-            clientNetManager.Connect("127.0.0.1", 7171, "");
-            Debug.LogError("Client net manager started!");
-
+            clientNetManager.Connect("localhost", 15000);
+            Debug.Log("Client net manager started!");
         }
         else
             Debug.LogError("Could not start client net manager!");
 
     }
 
+    private void FixedUpdate()
+    {
+        if (clientNetManager.IsRunning)
+            clientNetManager.PollEvents();
+    }
+
     // Update is called once per frame
     void Update()
     {
-
+       
     }
-
-    public void OnConnectionRequest(ConnectionRequest request)
-    {
-        
-    }
-
-    public void OnNetworkError(IPEndPoint endPoint, SocketError socketError)
-    {
-        Debug.LogError($"OnNetworkError: {socketError}");
-    }
-
+    
     public void OnNetworkLatencyUpdate(NetPeer peer, int latency)
     {
         
     }
 
-    public void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
+    public void OnNetworkReceive(NetPeer peer, NetDataReader reader)
     {
-        Debug.LogError($"OnNetworkReceive: {reader.AvailableBytes}");
+        Debug.Log($"OnNetworkReceive: {reader.Data.Length}");
     }
-
-    public void OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
-    {
-        Debug.LogError($"OnNetworkReceive: {reader.AvailableBytes}");
-    }
-
+    
     public void OnPeerConnected(NetPeer peer)
     {
-        Debug.LogError($"OnPeerConnected: {peer.EndPoint.Address} : {peer.EndPoint.Port}");
+        Debug.Log($"OnPeerConnected: {peer.EndPoint.Host} : {peer.EndPoint.Port}");
     }
 
     public void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
     {
-        Debug.LogError($"OnPeerConnected: {peer.EndPoint.Address} : {peer.EndPoint.Port} Reason: {disconnectInfo.Reason.ToString()}");
+        Debug.Log($"OnPeerConnected: {peer.EndPoint.Host} : {peer.EndPoint.Port} Reason: {disconnectInfo.Reason.ToString()}");
+    }
+
+    public void OnNetworkError(NetEndPoint endPoint, int socketErrorCode)
+    {
+        Debug.LogError($"OnNetworkError: {socketErrorCode}");
+    }
+
+    public void OnNetworkReceiveUnconnected(NetEndPoint remoteEndPoint, NetDataReader reader, UnconnectedMessageType messageType)
+    {
+        Debug.Log($"OnNetworkReceive: {reader.Data.Length}");
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Text;
 
 namespace LiteNetLib.Utils
@@ -10,14 +9,9 @@ namespace LiteNetLib.Utils
         protected int _position;
         protected int _dataSize;
 
-        public byte this[int i]
+        public byte[] Data
         {
-            get { return _data[i+_position]; }
-        }
-
-        public bool IsNull
-        {
-            get { return _data == null; }
+            get { return _data; }
         }
 
         public int Position
@@ -56,11 +50,11 @@ namespace LiteNetLib.Utils
             _dataSize = source.Length;
         }
 
-        public void SetSource(byte[] source, int offset, int maxSize)
+        public void SetSource(byte[] source, int offset, int dataSize)
         {
             _data = source;
             _position = offset;
-            _dataSize = maxSize;
+            _dataSize = dataSize;
         }
 
         /// <summary>
@@ -93,11 +87,11 @@ namespace LiteNetLib.Utils
         }
 
         #region GetMethods
-        public IPEndPoint GetNetEndPoint()
+        public NetEndPoint GetNetEndPoint()
         {
             string host = GetString(1000);
             int port = GetInt();
-            return NetUtils.MakeEndPoint(host, port);
+            return new NetEndPoint(host, port);
         }
 
         public byte GetByte()
@@ -222,26 +216,14 @@ namespace LiteNetLib.Utils
             return arr;
         }
 
-        public string[] GetStringArray()
+        public string[] GetStringArray(int maxLength)
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
             var arr = new string[size];
             for (int i = 0; i < size; i++)
             {
-                arr[i] = GetString();
-            }
-            return arr;
-        }
-
-        public string[] GetStringArray(int maxStringLength)
-        {
-            ushort size = BitConverter.ToUInt16(_data, _position);
-            _position += 2;
-            var arr = new string[size];
-            for (int i = 0; i < size; i++)
-            {
-                arr[i] = GetString(maxStringLength);
+                arr[i] = GetString(maxLength);
             }
             return arr;
         }
@@ -356,16 +338,16 @@ namespace LiteNetLib.Utils
             return outgoingData;
         }
 
-        public void GetBytes(byte[] destination, int start, int count)
+        public void GetRemainingBytes(byte[] destination)
         {
-            Buffer.BlockCopy(_data, _position, destination, start, count);
-            _position += count;
+            Buffer.BlockCopy(_data, _position, destination, 0, AvailableBytes);
+            _position = _data.Length;
         }
 
-        public void GetBytes(byte[] destination, int count)
+        public void GetBytes(byte[] destination, int lenght)
         {
-            Buffer.BlockCopy(_data, _position, destination, 0, count);
-            _position += count;
+            Buffer.BlockCopy(_data, _position, destination, 0, lenght);
+            _position += lenght;
         }
 
         public byte[] GetBytesWithLength()

@@ -1,76 +1,51 @@
+using System.Collections.Generic;
+
 namespace LiteNetLib
 {
-    internal sealed class SequencedChannel : BaseChannel
+    internal sealed class SequencedChannel
     {
         private int _localSequence;
-        private ushort _remoteSequence;
-        private readonly bool _reliable;
-        private NetPacket _lastPacket;
-        private readonly NetPacket _ackPacket;
-        private bool _mustSendAck;
+        private int _remoteSequence;
+        private readonly Queue<NetPacket> _outgoingPackets;
+        private readonly NetPeer _peer;
 
-        public SequencedChannel(NetPeer peer, bool reliable) : base(peer)
+        public SequencedChannel(NetPeer peer)
         {
-            _reliable = reliable;
-            if (_reliable)
+            _outgoingPackets = new Queue<NetPacket>();
+            _peer = peer;
+        }
+
+        public void AddToQueue(NetPacket packet)
+        {
+            lock (_outgoingPackets)
             {
-                _ackPacket = new NetPacket(PacketProperty.AckReliableSequenced, 0);
+                _outgoingPackets.Enqueue(packet);
             }
         }
 
-        public override void SendNextPackets()
+        public void SendNextPackets()
         {
-            if (_reliable && OutgoingQueue.Count == 0)
+            lock (_outgoingPackets)
             {
-                var packet = _lastPacket;
-                if(packet != null)
-                    Peer.SendUserData(packet);
-            }
-            else
-            {
-                lock (OutgoingQueue)
+                while (_outgoingPackets.Count > 0)
                 {
-                    while (OutgoingQueue.Count > 0)
-                    {
-                        NetPacket packet = OutgoingQueue.Dequeue();
-                        _localSequence = (_localSequence + 1) % NetConstants.MaxSequence;
-                        packet.Sequence = (ushort)_localSequence;
-                        Peer.SendUserData(packet);
-
-                        if (_reliable && OutgoingQueue.Count == 0)
-                            _lastPacket = packet;
-                        else
-                            Peer.Recycle(packet);
-                    }
+                    NetPacket packet = _outgoingPackets.Dequeue();
+                    _localSequence = (_localSequence + 1) % NetConstants.MaxSequence;
+                    packet.Sequence = (ushort)_localSequence;
+                    _peer.SendRawData(packet);
+                    _peer.Recycle(packet);
                 }
             }
-
-            if (_reliable && _mustSendAck)
-            {
-                _ackPacket.Sequence = _remoteSequence;
-                Peer.SendUserData(_ackPacket);
-            }
         }
 
-        public void ProcessAck(NetPacket packet)
+        public void ProcessPacket(NetPacket packet)
         {
-            if (_lastPacket != null && packet.Sequence == _lastPacket.Sequence)
+            if (packet.Sequence < NetConstants.MaxSequence && 
+                NetUtils.RelativeSequenceNumber(packet.Sequence, _remoteSequence) > 0)
             {
-                //TODO: recycle?
-                _lastPacket = null;
-            }
-        }
-
-        public override void ProcessPacket(NetPacket packet)
-        {
-            int relative = NetUtils.RelativeSequenceNumber(packet.Sequence, _remoteSequence);
-            if (packet.Sequence < NetConstants.MaxSequence && relative > 0)
-            {
-                Peer.Statistics.PacketLoss += (ulong)(relative - 1);
                 _remoteSequence = packet.Sequence;
-                Peer.AddIncomingPacket(packet);
+                _peer.AddIncomingPacket(packet);
             }
-            _mustSendAck = true;
         }
     }
 }

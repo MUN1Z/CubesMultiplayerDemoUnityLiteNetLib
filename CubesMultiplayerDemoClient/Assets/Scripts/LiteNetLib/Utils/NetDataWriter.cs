@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Text;
 
 namespace LiteNetLib.Utils
@@ -8,72 +7,40 @@ namespace LiteNetLib.Utils
     {
         protected byte[] _data;
         protected int _position;
-        private const int InitialSize = 64;
+
+        private int _maxLength;
         private readonly bool _autoResize;
 
-        public int Capacity
+        public NetDataWriter()
         {
-            get { return _data.Length; }
+            _maxLength = 64;
+            _data = new byte[_maxLength];
+            _autoResize = true;
         }
 
-        public NetDataWriter() : this(true, InitialSize)
+        public NetDataWriter(bool autoResize)
         {
-        }
-
-        public NetDataWriter(bool autoResize) : this(autoResize, InitialSize)
-        {
+            _maxLength = 64;
+            _data = new byte[_maxLength];
+            _autoResize = autoResize;
         }
 
         public NetDataWriter(bool autoResize, int initialSize)
         {
-            _data = new byte[initialSize];
+            _maxLength = initialSize;
+            _data = new byte[_maxLength];
             _autoResize = autoResize;
-        }
-
-        /// <summary>
-        /// Creates NetDataWriter from existing ByteArray
-        /// </summary>
-        /// <param name="bytes">Source byte array</param>
-        /// <param name="copy">Copy array to new location or use existing</param>
-        public static NetDataWriter FromBytes(byte[] bytes, bool copy)
-        {
-            if (copy)
-            {
-                var netDataWriter = new NetDataWriter(true, bytes.Length);
-                netDataWriter.Put(bytes);
-                return netDataWriter;
-            }
-            return new NetDataWriter(true, 0) {_data = bytes};
-        }
-
-        /// <summary>
-        /// Creates NetDataWriter from existing ByteArray (always copied data)
-        /// </summary>
-        /// <param name="bytes">Source byte array</param>
-        /// <param name="offset">Offset of array</param>
-        /// <param name="length">Length of array</param>
-        public static NetDataWriter FromBytes(byte[] bytes, int offset, int length)
-        {
-            var netDataWriter = new NetDataWriter(true, bytes.Length);
-            netDataWriter.Put(bytes, offset, length);
-            return netDataWriter;
-        }
-
-        public static NetDataWriter FromString(string value)
-        {
-            var netDataWriter = new NetDataWriter();
-            netDataWriter.Put(value);
-            return netDataWriter;
         }
 
         public void ResizeIfNeed(int newSize)
         {
-            int len = _data.Length;
-            if (len < newSize)
+            if (_maxLength < newSize)
             {
-                while (len < newSize)
-                    len *= 2;
-                Array.Resize(ref _data, len);
+                while (_maxLength < newSize)
+                {
+                    _maxLength *= 2;
+                }
+                Array.Resize(ref _data, _maxLength);
             }
         }
 
@@ -363,9 +330,9 @@ namespace LiteNetLib.Utils
             }
         }
 
-        public void Put(IPEndPoint endPoint)
+        public void Put(NetEndPoint endPoint)
         {
-            Put(endPoint.Address.ToString());
+            Put(endPoint.Host);
             Put(endPoint.Port);
         }
 

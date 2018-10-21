@@ -9,18 +9,15 @@
         public ulong PacketLoss;
         public ulong PacketLossPercent
         {
-            get { return PacketsSent == 0 ? 0 : PacketLoss * 100 / PacketsSent; }
-        }
+            get
+            {
+                if (PacketsSent == 0)
+                {
+                    return 0;
+                }
 
-        public ulong SequencedPacketLoss;
-
-        public void Reset()
-        {
-            PacketsSent = 0;
-            PacketsReceived = 0;
-            BytesSent = 0;
-            BytesReceived = 0;
-            PacketLoss = 0;
+                return PacketLoss * 100 / PacketsSent;
+            }
         }
 
         public override string ToString()

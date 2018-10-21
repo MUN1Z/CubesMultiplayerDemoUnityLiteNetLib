@@ -1,103 +1,79 @@
-﻿using System.Collections.Generic;
-using System.Net;
-using System.Threading;
+﻿using System;
+using System.Collections.Generic;
 
 namespace LiteNetLib
 {
-    internal sealed class IPEndPointComparer : IEqualityComparer<IPEndPoint>
-    {
-        public bool Equals(IPEndPoint x, IPEndPoint y)
-        {
-            return x.Equals(y);
-        }
-
-        public int GetHashCode(IPEndPoint obj)
-        {
-            return obj.GetHashCode();
-        }
-    }
-
     internal sealed class NetPeerCollection
     {
-        private readonly Dictionary<IPEndPoint, NetPeer> _peersDict;
-        private readonly ReaderWriterLockSlim _lock;
-        public int Count;
-        public volatile NetPeer HeadPeer;
+        private readonly Dictionary<NetEndPoint, NetPeer> _peersDict;
+        private readonly NetPeer[] _peersArray;
+        private int _count;
 
-        public NetPeerCollection()
+        public int Count
         {
-            _peersDict = new Dictionary<IPEndPoint, NetPeer>(new IPEndPointComparer());
-            _lock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+            get { return _count; }
         }
 
-        public bool TryGetValue(IPEndPoint endPoint, out NetPeer peer)
+        public NetPeer this[int index]
         {
-            _lock.EnterReadLock();
-            bool result = _peersDict.TryGetValue(endPoint, out peer);
-            _lock.ExitReadLock();
-            return result;
+            get { return _peersArray[index]; }
+        }
+
+        public NetPeerCollection(int maxPeers)
+        {
+            _peersArray = new NetPeer[maxPeers];
+            _peersDict = new Dictionary<NetEndPoint, NetPeer>();
+        }
+
+        public bool TryGetValue(NetEndPoint endPoint, out NetPeer peer)
+        {
+            return _peersDict.TryGetValue(endPoint, out peer);
         }
 
         public void Clear()
         {
-            _lock.EnterWriteLock();
-            HeadPeer = null;
+            Array.Clear(_peersArray, 0, _count);
             _peersDict.Clear();
-            Count = 0;
-            _lock.ExitWriteLock();
+            _count = 0;
         }
 
-        public NetPeer TryAdd(NetPeer peer)
+        public void Add(NetEndPoint endPoint, NetPeer peer)
         {
-            _lock.EnterUpgradeableReadLock();
-            NetPeer existingPeer;
-            if (_peersDict.TryGetValue(peer.EndPoint, out existingPeer))
+            _peersArray[_count] = peer;
+            _peersDict.Add(endPoint, peer);
+            _count++;
+        }
+
+        public bool ContainsAddress(NetEndPoint endPoint)
+        {
+            return _peersDict.ContainsKey(endPoint);
+        }
+
+        public NetPeer[] ToArray()
+        {
+            NetPeer[] result = new NetPeer[_count];
+            Array.Copy(_peersArray, 0, result, 0, _count);
+            return result;
+        }
+
+        public void RemoveAt(int idx)
+        {
+            _peersDict.Remove(_peersArray[idx].EndPoint);
+            _peersArray[idx] = _peersArray[_count - 1];
+            _peersArray[_count - 1] = null;
+            _count--;
+        }
+
+        public void Remove(NetEndPoint endPoint)
+        {
+            for (int i = 0; i < _count; i++)
             {
-                _lock.ExitUpgradeableReadLock();
-                return existingPeer;
+                if (_peersArray[i].EndPoint.Equals(endPoint))
+                {
+                    RemoveAt(i);
+                    break;
+                }
             }
-            _lock.EnterWriteLock();
-            if (HeadPeer != null)
-            {
-                peer.NextPeer = HeadPeer;
-                HeadPeer.PrevPeer = peer;
-            }
-            HeadPeer = peer;
-            _peersDict.Add(peer.EndPoint, peer);
-            Count++;
-            _lock.ExitWriteLock();
-            _lock.ExitUpgradeableReadLock();
-            return peer;
-        }
-
-        public void RemovePeers(List<NetPeer> peersList)
-        {
-            _lock.EnterWriteLock();
-            for (int i = 0; i < peersList.Count; i++)
-                RemovePeerInternal(peersList[i]);
-            _lock.ExitWriteLock();
-        }
-
-        public void RemovePeer(NetPeer peer)
-        {
-            _lock.EnterWriteLock();
-            RemovePeerInternal(peer);
-            _lock.ExitWriteLock();
-        }
-
-        private void RemovePeerInternal(NetPeer peer)
-        {
-            if (!_peersDict.Remove(peer.EndPoint))
-                return;
-            if (peer == HeadPeer)
-                HeadPeer = peer.NextPeer;
-            if (peer.PrevPeer != null)
-                peer.PrevPeer.NextPeer = peer.NextPeer;
-            if (peer.NextPeer != null)
-                peer.NextPeer.PrevPeer = peer.PrevPeer;
-            peer.PrevPeer = null;
-            peer.NextPeer = null;
-            Count--;
         }
     }
 }
