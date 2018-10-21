@@ -58,6 +58,22 @@ public class Network : MonoBehaviour, INetEventListener {
                     lastNetworkedPosition = player.transform.position;
                 }
             }
+
+        foreach (var p in netPlayersDictionary)
+        {
+            if (!p.Value.gameObjectAdded)
+            {
+                p.Value.gameObjectAdded = true;
+                p.Value.gameObject = GameObject.Instantiate(netPlayerPrefab, new Vector3(p.Value.x, p.Value.y, p.Value.z), Quaternion.identity);
+            }
+            else
+            {
+                p.Value.gameObject.transform.position = new Vector3(p.Value.x, p.Value.y, p.Value.z);
+
+                //Debug.Log($"X: {p.Value.x} Y: {p.Value.y} Z: { p.Value.z}");
+            }
+
+        }
     }
 
     // Update is called once per frame
@@ -90,13 +106,14 @@ public class Network : MonoBehaviour, INetEventListener {
             NetworkTags networkTag = (NetworkTags)reader.GetInt();
             if (networkTag == NetworkTags.PlayerPositionsArray)
             {
-                int lengthArr = (reader.Data.Length - 4) / (sizeof(long) + sizeof(float) * 2);
+                int lengthArr = (reader.Data.Length - 4) / (sizeof(long) + sizeof(float) * 3);
 
                 Debug.Log("Got positions array data num : " + lengthArr);
                 
                 for (int i = 0; i < lengthArr; i++)
                 {
                     long playerid = reader.GetLong();
+
                     float x = reader.GetFloat();
                     float y = reader.GetFloat();
                     float z = reader.GetFloat();

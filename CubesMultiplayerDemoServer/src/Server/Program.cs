@@ -68,6 +68,7 @@ namespace Server
                         continue;
 
                     dataWriter.Put(posPlayers.Key);
+
                     dataWriter.Put(posPlayers.Value.X);
                     dataWriter.Put(posPlayers.Value.Y);
                     dataWriter.Put(posPlayers.Value.Z);
@@ -94,6 +95,7 @@ namespace Server
             foreach (var p in networkPlayersDictionary)
             {
                 netDataWriter.Put(p.Key);
+
                 netDataWriter.Put(p.Value.X);
                 netDataWriter.Put(p.Value.Y);
                 netDataWriter.Put(p.Value.Z);
@@ -125,26 +127,21 @@ namespace Server
 
             if (reader.Data == null)
                 return;
-
-            if (reader.Data.Length == (sizeof(int) + sizeof(float) * 2))
+            
+            NetworkTags networkTag = (NetworkTags)reader.GetInt();
+            if (networkTag == NetworkTags.PlayerPosition)
             {
-                // possibly a position packet.
-                // check for data type
-                NetworkTags networkTag = (NetworkTags)reader.GetInt();
-                if (networkTag == NetworkTags.PlayerPosition)
-                {
-                    float x = reader.GetFloat();
-                    float y = reader.GetFloat();
-                    float z = reader.GetFloat();
+                float x = reader.GetFloat();
+                float y = reader.GetFloat();
+                float z = reader.GetFloat();
 
-                    Console.WriteLine($"Got position packet : {x} | {y} | {z}");
+                Console.WriteLine($"Got position packet : {x} | {y} | {z}");
                     
-                    networkPlayersDictionary[peer.ConnectId].X = x;
-                    networkPlayersDictionary[peer.ConnectId].Y = y;
-                    networkPlayersDictionary[peer.ConnectId].Z = y;
+                networkPlayersDictionary[peer.ConnectId].X = x;
+                networkPlayersDictionary[peer.ConnectId].Y = y;
+                networkPlayersDictionary[peer.ConnectId].Z = z;
 
-                    networkPlayersDictionary[peer.ConnectId].Moved = true;
-                }
+                networkPlayersDictionary[peer.ConnectId].Moved = true;
             }
         }
 

@@ -647,7 +647,7 @@ PlayerSettings:
   cloudServicesEnabled:
     UNet: 1
   facebookSdkVersion: 7.9.4
-  apiCompatibilityLevel: 2
+  apiCompatibilityLevel: 3
   cloudProjectId: d1f7351c-aa9f-4fef-920d-fd01a6aaf24d
   projectName: CubesMultiplayerDemoClient
   organizationId: felipemuniznet
