@@ -3,7 +3,7 @@ namespace LiteNetLib
     /// <summary>
     /// Sending method type
     /// </summary>
-    public enum SendOptions
+    public enum DeliveryMethod
     {
         /// <summary>
         /// Unreliable. Packets can be dropped, duplicated or arrive without order
@@ -23,7 +23,12 @@ namespace LiteNetLib
         /// <summary>
         /// Reliable and ordered. All packets will be sent and received in order
         /// </summary>
-        ReliableOrdered
+        ReliableOrdered,
+
+        /// <summary>
+        /// Reliable only last packet
+        /// </summary>
+        ReliableSequenced
     }
 
     /// <summary>
@@ -41,35 +46,29 @@ namespace LiteNetLib
         public const int FragmentHeaderSize = 6;
         public const ushort MaxSequence = 32768;
         public const ushort HalfMaxSequence = MaxSequence / 2;
-        public const int MinPacketSize = 576 - MaxUdpHeaderSize;
-        public const int MinPacketDataSize = MinPacketSize - HeaderSize;
-        public const int MinSequencedPacketDataSize = MinPacketSize - SequencedHeaderSize;
 
         //internal
-        internal const string MulticastGroupIPv4 = "224.0.0.1";
         internal const string MulticastGroupIPv6 = "FF02:0:0:0:0:0:0:1";
 
         //protocol
-        internal const int ProtocolId = 1;
+        internal const int ProtocolId = 5;
         internal const int MaxUdpHeaderSize = 68;
-        internal const int PacketSizeLimit = ushort.MaxValue - MaxUdpHeaderSize;
-        internal const int RequestConnectIdIndex = 5;
-        internal const int AcceptConnectIdIndex = 1;
 
         internal static readonly int[] PossibleMtu =
         {
-            576 - MaxUdpHeaderSize,  //Internet Path MTU for X.25 (RFC 879)
+            576  - MaxUdpHeaderSize, //minimal
+            1232 - MaxUdpHeaderSize,
+            1460 - MaxUdpHeaderSize, //google cloud
+            1472 - MaxUdpHeaderSize, //VPN
             1492 - MaxUdpHeaderSize, //Ethernet with LLC and SNAP, PPPoE (RFC 1042)
-            1500 - MaxUdpHeaderSize, //Ethernet II (RFC 1191)
-            4352 - MaxUdpHeaderSize, //FDDI
-            4464 - MaxUdpHeaderSize, //Token ring
-            7981 - MaxUdpHeaderSize  //WLAN
+            1500 - MaxUdpHeaderSize  //Ethernet II (RFC 1191)
         };
 
-        internal static int MaxPacketSize = PossibleMtu[PossibleMtu.Length - 1];
+        internal static readonly int MaxPacketSize = PossibleMtu[PossibleMtu.Length - 1];
 
         //peer specific
-        public const int FlowUpdateTime = 1000;
-        public const int FlowIncreaseThreshold = 4;
+        public const byte MaxConnectionNumber = 4;
+
+        public const int PacketPoolSize = 1000;
     }
 }

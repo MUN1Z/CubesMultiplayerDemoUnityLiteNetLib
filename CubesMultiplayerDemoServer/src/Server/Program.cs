@@ -107,6 +107,7 @@ namespace Server
                 NetDataWriter netDataWriter = new NetDataWriter();
                 netDataWriter.Reset();
                 netDataWriter.Put((int)NetworkTags.PlayerPositionsArray);
+
                 foreach (var p in networkPlayersDictionary)
                 {
                     netDataWriter.Put(p.Key);
@@ -199,7 +200,10 @@ namespace Server
 
         public void OnNetworkLatencyUpdate(NetPeer peer, int latency)
         {
-            try { }
+            try
+            {
+                Console.WriteLine($"OnNetworkLatencyUpdate");
+            }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");

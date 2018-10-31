@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Text;
 
 namespace LiteNetLib.Utils
@@ -8,10 +9,31 @@ namespace LiteNetLib.Utils
         protected byte[] _data;
         protected int _position;
         protected int _dataSize;
+        private int _offset;
 
-        public byte[] Data
+        public byte[] RawData
         {
             get { return _data; }
+        }
+
+        public int RawDataSize
+        {
+            get { return _dataSize; }
+        }
+
+        public int UserDataOffset
+        {
+            get { return _offset; }
+        }
+
+        public int UserDataSize
+        {
+            get { return _dataSize - _offset; }
+        }
+
+        public bool IsNull
+        {
+            get { return _data == null; }
         }
 
         public int Position
@@ -33,6 +55,7 @@ namespace LiteNetLib.Utils
         {
             _data = dataWriter.Data;
             _position = 0;
+            _offset = 0;
             _dataSize = dataWriter.Length;
         }
 
@@ -40,6 +63,7 @@ namespace LiteNetLib.Utils
         {
             _data = source;
             _position = 0;
+            _offset = 0;
             _dataSize = source.Length;
         }
 
@@ -47,23 +71,16 @@ namespace LiteNetLib.Utils
         {
             _data = source;
             _position = offset;
+            _offset = offset;
             _dataSize = source.Length;
         }
 
-        public void SetSource(byte[] source, int offset, int dataSize)
+        public void SetSource(byte[] source, int offset, int maxSize)
         {
             _data = source;
             _position = offset;
-            _dataSize = dataSize;
-        }
-
-        /// <summary>
-        /// Clone NetDataReader without data copy (usable for OnReceive)
-        /// </summary>
-        /// <returns>new NetDataReader instance</returns>
-        public NetDataReader Clone()
-        {
-            return new NetDataReader(_data, _position, _dataSize);
+            _offset = offset;
+            _dataSize = maxSize;
         }
 
         public NetDataReader()
@@ -87,11 +104,11 @@ namespace LiteNetLib.Utils
         }
 
         #region GetMethods
-        public NetEndPoint GetNetEndPoint()
+        public IPEndPoint GetNetEndPoint()
         {
             string host = GetString(1000);
             int port = GetInt();
-            return new NetEndPoint(host, port);
+            return NetUtils.MakeEndPoint(host, port);
         }
 
         public byte GetByte()
@@ -216,14 +233,26 @@ namespace LiteNetLib.Utils
             return arr;
         }
 
-        public string[] GetStringArray(int maxLength)
+        public string[] GetStringArray()
         {
             ushort size = BitConverter.ToUInt16(_data, _position);
             _position += 2;
             var arr = new string[size];
             for (int i = 0; i < size; i++)
             {
-                arr[i] = GetString(maxLength);
+                arr[i] = GetString();
+            }
+            return arr;
+        }
+
+        public string[] GetStringArray(int maxStringLength)
+        {
+            ushort size = BitConverter.ToUInt16(_data, _position);
+            _position += 2;
+            var arr = new string[size];
+            for (int i = 0; i < size; i++)
+            {
+                arr[i] = GetString(maxStringLength);
             }
             return arr;
         }
@@ -338,16 +367,16 @@ namespace LiteNetLib.Utils
             return outgoingData;
         }
 
-        public void GetRemainingBytes(byte[] destination)
+        public void GetBytes(byte[] destination, int start, int count)
         {
-            Buffer.BlockCopy(_data, _position, destination, 0, AvailableBytes);
-            _position = _data.Length;
+            Buffer.BlockCopy(_data, _position, destination, start, count);
+            _position += count;
         }
 
-        public void GetBytes(byte[] destination, int lenght)
+        public void GetBytes(byte[] destination, int count)
         {
-            Buffer.BlockCopy(_data, _position, destination, 0, lenght);
-            _position += lenght;
+            Buffer.BlockCopy(_data, _position, destination, 0, count);
+            _position += count;
         }
 
         public byte[] GetBytesWithLength()

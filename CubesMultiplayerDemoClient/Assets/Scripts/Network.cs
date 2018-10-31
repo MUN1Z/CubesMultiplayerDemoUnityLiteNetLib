@@ -3,16 +3,19 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using Shared.Enums;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using UnityEngine;
 
-public class Network : MonoBehaviour, INetEventListener {
-
+public class Network : MonoBehaviour, INetEventListener
+{
     public Player player;
     private Vector3 lastNetworkedPosition = Vector3.zero;
 
     private float lastDistance = 0.0f;
     const float MIN_DISTANCE_TO_SEND_POSITION = 0.01f;
 
+    EventBasedNetListener listener;
     private NetDataWriter dataWriter;
     private NetManager clientNetManager;
     private NetPeer serverPeer;
@@ -25,11 +28,13 @@ public class Network : MonoBehaviour, INetEventListener {
     {
         netPlayersDictionary = new Dictionary<long, NetPlayer>();
         dataWriter = new NetDataWriter();
-        clientNetManager = new NetManager(this, "game");
+
+        listener = new EventBasedNetListener();
+        clientNetManager = new NetManager(listener);
 
         if (clientNetManager.Start())
         {
-            clientNetManager.Connect("localhost", 15000);
+            clientNetManager.Connect("127.0.01", 15000, "game");
             Debug.Log("Client net manager started!");
         }
         else
@@ -45,16 +50,16 @@ public class Network : MonoBehaviour, INetEventListener {
                 clientNetManager.PollEvents();
 
                 lastDistance = Vector3.Distance(lastNetworkedPosition, player.transform.position);
-                if(lastDistance >= MIN_DISTANCE_TO_SEND_POSITION)
+                if (lastDistance >= MIN_DISTANCE_TO_SEND_POSITION)
                 {
                     dataWriter.Reset();
-                    
+
                     dataWriter.Put((int)NetworkTags.PlayerPosition);
                     dataWriter.Put(player.transform.position.x);
                     dataWriter.Put(player.transform.position.y);
                     dataWriter.Put(player.transform.position.z);
 
-                    serverPeer.Send(dataWriter, SendOptions.Sequenced);
+                    serverPeer.Send(dataWriter, DeliveryMethod.Sequenced);
 
                     lastNetworkedPosition = player.transform.position;
                 }
@@ -71,7 +76,7 @@ public class Network : MonoBehaviour, INetEventListener {
                 player.Value.GameObject.transform.position = player.Value.Position;
         }
     }
-    
+
     private void OnApplicationQuit()
     {
         if (clientNetManager != null)
@@ -81,26 +86,26 @@ public class Network : MonoBehaviour, INetEventListener {
 
     public void OnNetworkLatencyUpdate(NetPeer peer, int latency) { }
 
-    public void OnNetworkReceive(NetPeer peer, NetDataReader reader)
+    public void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
     {
-        if (reader.Data == null)
+        if (reader.RawData == null)
             return;
 
-        Debug.Log($"OnNetworkReceive: {reader.Data.Length}");
+        Debug.Log($"OnNetworkReceive: {reader.RawData.Length}");
 
-        if (reader.Data.Length >= 4)
+        if (reader.RawData.Length >= 4)
         {
             NetworkTags networkTag = (NetworkTags)reader.GetInt();
             if (networkTag == NetworkTags.PlayerPositionsArray)
             {
-                int lengthArr = (reader.Data.Length - 4) / (sizeof(long) + sizeof(float) * 3);
+                int lengthArr = (reader.RawData.Length - 4) / (sizeof(long) + sizeof(float) * 3);
 
                 Debug.Log("Got positions array data num : " + lengthArr);
-                
+
                 for (int i = 0; i < lengthArr; i++)
                 {
                     long playerid = reader.GetLong();
-                    
+
                     if (!netPlayersDictionary.ContainsKey(playerid))
                         netPlayersDictionary.Add(playerid, new NetPlayer());
 
@@ -111,25 +116,30 @@ public class Network : MonoBehaviour, INetEventListener {
             }
         }
     }
-    
+
     public void OnPeerConnected(NetPeer peer)
     {
         serverPeer = peer;
-        Debug.Log($"OnPeerConnected: {peer.EndPoint.Host} : {peer.EndPoint.Port}");
+        Debug.Log($"OnPeerConnected: {peer.EndPoint.Address.ToString()} : {peer.EndPoint.Port}");
     }
 
     public void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
     {
-        Debug.Log($"OnPeerConnected: {peer.EndPoint.Host} : {peer.EndPoint.Port} Reason: {disconnectInfo.Reason.ToString()}");
+        Debug.Log($"OnPeerConnected: {peer.EndPoint.Address.ToString()} : {peer.EndPoint.Port} Reason: {disconnectInfo.Reason.ToString()}");
     }
 
-    public void OnNetworkError(NetEndPoint endPoint, int socketErrorCode)
+    public void OnNetworkError(IPEndPoint endPoint, SocketError socketError)
     {
-        Debug.LogError($"OnNetworkError: {socketErrorCode}");
+        Debug.LogError($"OnNetworkError: {socketError.ToString()}");
     }
 
-    public void OnNetworkReceiveUnconnected(NetEndPoint remoteEndPoint, NetDataReader reader, UnconnectedMessageType messageType)
+    public void OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
     {
-        Debug.Log($"OnNetworkReceive: {reader.Data.Length}");
+        Debug.Log($"OnNetworkReceiveUnconnected: {reader.RawData.Length}");
+    }
+    
+    public void OnConnectionRequest(ConnectionRequest request)
+    {
+        Debug.Log($"ConnectionRequest");
     }
 }
